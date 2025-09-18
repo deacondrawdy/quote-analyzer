@@ -188,24 +188,19 @@ export async function POST(request: NextRequest) {
     console.log('🎉 Analysis complete, sending response');
 
     // ENHANCED: Keep existing response structure, add optional warnings
-    const response = {
-      ok: true,
-      analysis,
-      filename: file.name,
-      filesize: file.size
-    };
+  const response: any = {
+  ok: true,
+  analysis,
+  filename: file.name,
+  filesize: file.size
+};
 
-    // Add warnings if present (doesn't break existing frontend)
-    if (contentWarnings.length > 0) {
-      response.warnings = contentWarnings;
-    }
+// Add warnings if present (doesn't break existing frontend)
+if (contentWarnings.length > 0) {
+  response.warnings = contentWarnings;
+}
 
-    return NextResponse.json(response);
-
-  } catch (error: any) {
-    console.error('❌ Analysis failed:', error.message);
-    
-    return NextResponse.json(
+return NextResponse.json(response);
       { 
         ok: false, 
         error: error.message || 'Analysis failed',
