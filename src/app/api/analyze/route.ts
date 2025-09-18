@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
     // Call OpenAI for analysis (KEEP EXISTING APPROACH)
     console.log('🤖 Sending to OpenAI...');
     const completion = await openai.chat.completions.create({
-      model: 'gpt-40',
+      model: 'gpt-4.1-2025-04-14',
       messages: [
         {
           role: 'system',
