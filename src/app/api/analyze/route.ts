@@ -187,8 +187,8 @@ export async function POST(request: NextRequest) {
 
     console.log('🎉 Analysis complete, sending response');
 
-    // ENHANCED: Keep existing response structure, add optional warnings
-  const response: any = {
+// ENHANCED: Keep existing response structure, add optional warnings
+const response: any = {
   ok: true,
   analysis,
   filename: file.name,
@@ -201,6 +201,11 @@ if (contentWarnings.length > 0) {
 }
 
 return NextResponse.json(response);
+
+  } catch (error: any) {
+    console.error('❌ Analysis failed:', error.message);
+    
+    return NextResponse.json(
       { 
         ok: false, 
         error: error.message || 'Analysis failed',
