@@ -4,41 +4,51 @@ import OpenAI from 'openai';
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-// ADD THIS FUNCTION HERE:
+
+// Aggressive truncation to stay under rate limits
 function truncateText(text: string, maxTokens: number = 5000): string {
-  // Rough estimate: 1 token ≈ 4 characters
-  const maxChars = maxTokens * 4; // Only 20,000 characters = ~5k tokens
+  // Conservative estimate: 1 token ≈ 4 characters
+  const maxChars = maxTokens * 4; // 20,000 characters = ~5k tokens
   
   if (text.length <= maxChars) {
+    console.log(`Text length ${text.length} characters - no truncation needed`);
     return text;
   }
   
-  console.log(`Truncating text from ${text.length} to ${maxChars} characters`);
-  return text.substring(0, maxChars) + "\n\n[Document truncated due to length]";
+  console.log(`Truncating text from ${text.length} to ${maxChars} characters to stay under rate limits`);
+  return text.substring(0, maxChars) + "\n\n[Document truncated due to length - analysis based on first portion of document]";
 }
-// Enhanced extract text with content validation (CONSERVATIVE ADDITION)
+
+// Enhanced extract text with content validation and truncation
 async function extractText(file: File): Promise<string> {
-  // Basic file validation (NEW - prevents empty files)
+  // Basic file validation
   if (file.size === 0) {
     throw new Error('File appears to be empty. Please select a valid file with content.');
   }
 
-  // Large file warning (NEW - practical limit)
+  // Large file warning
   if (file.size > 10 * 1024 * 1024) { // 10MB
     console.warn(`Large file uploaded: ${file.size} bytes`);
   }
 
-  const text = await file.text();
+  let text = '';
+  
+  try {
+    text = await file.text();
+  } catch (error) {
+    throw new Error(`Failed to read file: ${file.name}. Please try a different file format.`);
+  }
   
   if (file.type === 'application/pdf') {
-    // ENHANCED: Check if we actually got text from the PDF
+    // Check if we actually got text from the PDF
     if (text && text.length > 50) {
-      // PDF had readable text - use it (NEW PATH)
-      console.log(`📄 PDF text extracted: ${text.length} characters`);
-      return text;
+      // PDF had readable text - use it
+      console.log(`PDF text extracted: ${text.length} characters`);
+      const truncatedText = truncateText(text);
+      return truncatedText;
     } else {
-      // PDF was likely scanned/image-based - use your existing fallback (KEEP WORKING APPROACH)
-      console.log('📄 PDF appears to be scanned - using analysis prompt');
+      // PDF was likely scanned/image-based - use enhanced analysis prompt
+      console.log('PDF appears to be scanned - using enhanced analysis prompt');
       return `You are a consumer protection expert analyzing this home services quote document: "${file.name}".
 
 CRITICAL ANALYSIS REQUIREMENTS:
@@ -75,23 +85,26 @@ CRITICAL ANALYSIS REQUIREMENTS:
 
 **ANALYSIS APPROACH:** Be thorough but fair. Protect consumers from genuinely problematic practices while not attacking legitimate businesses. Focus on transparency, value, and consumer education.
 
+IMPORTANT: Only use information that is actually present in the provided text. Do not invent details that are not explicitly stated.
+
 Provide your analysis in structured JSON format with clear sections for each area above.`;
     }
   }
   
-  // For non-PDF files, validate content length (NEW - prevents hallucination)
+  // For non-PDF files, validate content length and truncate
   const finalText = text || `Please analyze this home services quote file: ${file.name}`;
   
   if (finalText.length < 20 && !file.type.includes('pdf')) {
     throw new Error(`Could not extract readable content from ${file.name}. Please try uploading as a text file (.txt) or ensure the file contains readable text.`);
   }
 
-  return finalText;
+  // Apply truncation to all text content
+  return truncateText(finalText);
 }
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('📁 Analysis request received');
+    console.log('Analysis request received');
     
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -103,14 +116,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`📄 Processing file: ${file.name} (${file.size} bytes)`);
+    console.log(`Processing file: ${file.name} (${file.size} bytes, type: ${file.type})`);
 
-    // Extract text from file (ENHANCED but backwards compatible)
+    // Extract and truncate text from file
     let text;
     try {
       text = await extractText(file);
     } catch (extractionError) {
-      // NEW: Better error handling with file type guidance
       const errorMessage = extractionError instanceof Error ? extractionError.message : 'Failed to process file';
       
       return NextResponse.json(
@@ -122,7 +134,8 @@ export async function POST(request: NextRequest) {
             tips: [
               'For best results, use clear text files',
               'PDFs work well if they contain selectable text',
-              'Scanned documents may have limited text extraction'
+              'Scanned documents may have limited text extraction',
+              'Large files are automatically truncated to prevent rate limit issues'
             ]
           }
         },
@@ -130,15 +143,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`📝 Extracted text length: ${text.length} characters`);
+    console.log(`Final text length: ${text.length} characters`);
 
-    // NEW: Content quality assessment (doesn't break existing flow)
+    // Content quality assessment
     const contentWarnings = [];
     if (text.length < 100) {
       contentWarnings.push('Limited content detected - analysis may be less detailed');
     }
 
-    // Check for quote-related keywords (NEW - helps validate content)
+    // Check for quote-related keywords
     const quoteKeywords = ['quote', 'estimate', 'cost', 'labor', 'materials', 'total', 'service', '$', 'price'];
     const hasQuoteContent = quoteKeywords.some(keyword => 
       text.toLowerCase().includes(keyword)
@@ -148,14 +161,14 @@ export async function POST(request: NextRequest) {
       contentWarnings.push('File may not contain a service quote - please verify correct document');
     }
 
-    // Call OpenAI for analysis (KEEP EXISTING APPROACH)
-    console.log('🤖 Sending to OpenAI...');
+    // Call OpenAI for analysis
+    console.log('Sending to OpenAI...');
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4.1-2025-04-14',
+      model: 'gpt-4o-mini', // Using smaller model to stay under rate limits
       messages: [
         {
           role: 'system',
-          content: 'You are a home services quote analysis expert. Analyze the provided quote and return a detailed JSON response with insights about cost, quality, timeline, and potential issues. IMPORTANT: Only use information that is actually present in the provided text. Do not invent details that are not explicitly stated.'
+          content: 'You are a home services quote analysis expert and consumer protection advocate. Analyze the provided quote and return a detailed JSON response with insights about cost, quality, timeline, and potential issues. IMPORTANT: Only use information that is actually present in the provided text. Do not invent details that are not explicitly stated.'
         },
         {
           role: 'user',
@@ -164,21 +177,22 @@ export async function POST(request: NextRequest) {
       ],
       response_format: { type: 'json_object' },
       temperature: 0.3,
+      max_tokens: 4000, // Limit output tokens to stay under rate limits
     });
 
     const analysisText = completion.choices[0]?.message?.content;
-    console.log('✅ OpenAI analysis completed');
+    console.log('OpenAI analysis completed');
 
     if (!analysisText) {
       throw new Error('No analysis returned from OpenAI');
     }
 
-    // Parse the JSON response (KEEP EXISTING LOGIC)
+    // Parse the JSON response
     let analysis;
     try {
       analysis = JSON.parse(analysisText);
       
-      // NEW: Add processing metadata without breaking existing structure
+      // Add processing metadata without breaking existing structure
       if (contentWarnings.length > 0) {
         analysis.processing_warnings = contentWarnings;
       }
@@ -196,25 +210,40 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    console.log('🎉 Analysis complete, sending response');
+    console.log('Analysis complete, sending response');
 
-// ENHANCED: Keep existing response structure, add optional warnings
-const response: any = {
-  ok: true,
-  analysis,
-  filename: file.name,
-  filesize: file.size
-};
+    // Keep existing response structure, add optional warnings
+    const response: any = {
+      ok: true,
+      analysis,
+      filename: file.name,
+      filesize: file.size
+    };
 
-// Add warnings if present (doesn't break existing frontend)
-if (contentWarnings.length > 0) {
-  response.warnings = contentWarnings;
-}
+    // Add warnings if present (doesn't break existing frontend)
+    if (contentWarnings.length > 0) {
+      response.warnings = contentWarnings;
+    }
 
-return NextResponse.json(response);
+    return NextResponse.json(response);
 
   } catch (error: any) {
-    console.error('❌ Analysis failed:', error.message);
+    console.error('Analysis failed:', error.message);
+    
+    // Handle specific OpenAI rate limit errors
+    if (error.message.includes('Rate limit') || error.message.includes('tokens per min')) {
+      return NextResponse.json(
+        { 
+          ok: false, 
+          error: 'Rate limit exceeded. Please wait a moment and try again with a smaller file.',
+          details: 'Try uploading a shorter document or wait 60 seconds before retrying.',
+          rate_limit_info: {
+            suggestion: 'For large documents, consider copying just the essential quote information into a text file.'
+          }
+        },
+        { status: 429 }
+      );
+    }
     
     return NextResponse.json(
       { 
