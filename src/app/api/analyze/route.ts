@@ -6,7 +6,7 @@ const openai = new OpenAI({
 });
 
 // Aggressive truncation to stay under rate limits
-function truncateText(text: string, maxTokens: number = 5000): string {
+function truncateText(text: string, maxTokens: number = 25000): string {
   // Conservative estimate: 1 token ≈ 4 characters
   const maxChars = maxTokens * 4; // 20,000 characters = ~5k tokens
   
