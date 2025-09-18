@@ -5,16 +5,16 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 // ADD THIS FUNCTION HERE:
-function truncateText(text: string, maxTokens: number = 25000): string {
+function truncateText(text: string, maxTokens: number = 5000): string {
   // Rough estimate: 1 token ≈ 4 characters
-  const maxChars = maxTokens * 4;
+  const maxChars = maxTokens * 4; // Only 20,000 characters = ~5k tokens
   
   if (text.length <= maxChars) {
     return text;
   }
   
   console.log(`Truncating text from ${text.length} to ${maxChars} characters`);
-  return text.substring(0, maxChars) + "\n\n[Document truncated due to length - analysis based on first portion]";
+  return text.substring(0, maxChars) + "\n\n[Document truncated due to length]";
 }
 // Enhanced extract text with content validation (CONSERVATIVE ADDITION)
 async function extractText(file: File): Promise<string> {
