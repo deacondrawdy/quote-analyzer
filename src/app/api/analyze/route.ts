@@ -5,33 +5,22 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-<<<<<<< HEAD
 // Aggressive truncation to stay under rate limits
 function truncateText(text: string, maxTokens: number = 25000): string {
   // Conservative estimate: 1 token ≈ 4 characters
-  const maxChars = maxTokens * 4; // 20,000 characters = ~5k tokens
+  const maxChars = maxTokens * 4; // 100,000 characters = ~25k tokens
   
   if (text.length <= maxChars) {
     console.log(`Text length ${text.length} characters - no truncation needed`);
     return text;
-=======
-// Enhanced PDF text extraction
-async function extractText(file: File): Promise<string> {
-  if (file.size === 0) {
-    throw new Error('File appears to be empty. Please select a valid file with content.');
->>>>>>> 2b80852 (Implement Consumer Champion analysis system with comprehensive scam detection and market pricing)
   }
 
-  let text = '';
-  
-<<<<<<< HEAD
   console.log(`Truncating text from ${text.length} to ${maxChars} characters to stay under rate limits`);
   return text.substring(0, maxChars) + "\n\n[Document truncated due to length - analysis based on first portion of document]";
 }
 
-// Enhanced extract text with content validation and truncation
+// Enhanced PDF text extraction
 async function extractText(file: File): Promise<string> {
-  // Basic file validation
   if (file.size === 0) {
     throw new Error('File appears to be empty. Please select a valid file with content.');
   }
@@ -44,22 +33,20 @@ async function extractText(file: File): Promise<string> {
   let text = '';
   
   try {
-    text = await file.text();
-  } catch (error) {
-    throw new Error(`Failed to read file: ${file.name}. Please try a different file format.`);
-  }
-  
-  if (file.type === 'application/pdf') {
-    // Check if we actually got text from the PDF
-    if (text && text.length > 50) {
-      // PDF had readable text - use it
-      console.log(`PDF text extracted: ${text.length} characters`);
-      const truncatedText = truncateText(text);
-      return truncatedText;
-    } else {
-      // PDF was likely scanned/image-based - use enhanced analysis prompt
-      console.log('PDF appears to be scanned - using enhanced analysis prompt');
-      return `You are a consumer protection expert analyzing this home services quote document: "${file.name}".
+    if (file.type === 'application/pdf') {
+      // Basic PDF text extraction - you can enhance this with pdf-parse later
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      
+      text = new TextDecoder('utf-8').decode(uint8Array);
+      text = text.replace(/[^\x20-\x7E\s]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+      
+      if (text.length < 100) {
+        // PDF was likely scanned/image-based - use enhanced analysis prompt
+        console.log('PDF appears to be scanned - using enhanced analysis prompt');
+        return `You are a consumer protection expert analyzing this home services quote document: "${file.name}".
 
 CRITICAL ANALYSIS REQUIREMENTS:
 
@@ -97,33 +84,7 @@ CRITICAL ANALYSIS REQUIREMENTS:
 
 IMPORTANT: Only use information that is actually present in the provided text. Do not invent details that are not explicitly stated.
 
-Provide your analysis in structured JSON format with clear sections for each area above.`;
-    }
-  }
-  
-  // For non-PDF files, validate content length and truncate
-  const finalText = text || `Please analyze this home services quote file: ${file.name}`;
-  
-  if (finalText.length < 20 && !file.type.includes('pdf')) {
-    throw new Error(`Could not extract readable content from ${file.name}. Please try uploading as a text file (.txt) or ensure the file contains readable text.`);
-  }
-
-  // Apply truncation to all text content
-  return truncateText(finalText);
-=======
-  try {
-    if (file.type === 'application/pdf') {
-      // Basic PDF text extraction - you can enhance this with pdf-parse later
-      const arrayBuffer = await file.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      
-      text = new TextDecoder('utf-8').decode(uint8Array);
-      text = text.replace(/[^\x20-\x7E\s]/g, ' ')
-                .replace(/\s+/g, ' ')
-                .trim();
-      
-      if (text.length < 100) {
-        throw new Error('Could not extract readable text from PDF');
+Provide your analysis in structured format with clear sections for each area above.`;
       }
       
       console.log(`Successfully extracted ${text.length} characters from PDF`);
@@ -141,7 +102,8 @@ Provide your analysis in structured JSON format with clear sections for each are
     throw new Error(`Failed to extract text from ${file.name}: ${error}`);
   }
 
-  return text;
+  // Apply truncation to all text content
+  return truncateText(text);
 }
 
 // Enhanced document splitting with better technical service recognition
@@ -380,16 +342,11 @@ Deliver uncompromising guidance on whether consumers should proceed, what they m
 - Make the report scannable and easy to follow
 
 Your report will be formatted for consumer readability, so organize it clearly with proper spacing and structure.`;
->>>>>>> 2b80852 (Implement Consumer Champion analysis system with comprehensive scam detection and market pricing)
 }
 
 export async function POST(request: NextRequest) {
   try {
-<<<<<<< HEAD
-    console.log('Analysis request received');
-=======
     console.log('Enhanced Consumer Champion Forensic Analysis initiated');
->>>>>>> 2b80852 (Implement Consumer Champion analysis system with comprehensive scam detection and market pricing)
     
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -404,28 +361,6 @@ export async function POST(request: NextRequest) {
 
     console.log(`Processing file: ${file.name} (${file.size} bytes, type: ${file.type})`);
 
-<<<<<<< HEAD
-    // Extract and truncate text from file
-    let text;
-    try {
-      text = await extractText(file);
-    } catch (extractionError) {
-      const errorMessage = extractionError instanceof Error ? extractionError.message : 'Failed to process file';
-      
-      return NextResponse.json(
-        { 
-          ok: false, 
-          error: errorMessage,
-          file_type_guidance: {
-            supported_formats: ['Text files (.txt)', 'PDF documents', 'Word documents'],
-            tips: [
-              'For best results, use clear text files',
-              'PDFs work well if they contain selectable text',
-              'Scanned documents may have limited text extraction',
-              'Large files are automatically truncated to prevent rate limit issues'
-            ]
-          }
-=======
     // Extract text with enhanced processing
     let text;
     try {
@@ -443,40 +378,10 @@ export async function POST(request: NextRequest) {
             'Check that the file is not corrupted',
             'For best results, use files with clear, readable text'
           ]
->>>>>>> 2b80852 (Implement Consumer Champion analysis system with comprehensive scam detection and market pricing)
         },
         { status: 400 }
       );
     }
-<<<<<<< HEAD
-
-    console.log(`Final text length: ${text.length} characters`);
-
-    // Content quality assessment
-    const contentWarnings = [];
-    if (text.length < 100) {
-      contentWarnings.push('Limited content detected - analysis may be less detailed');
-    }
-
-    // Check for quote-related keywords
-    const quoteKeywords = ['quote', 'estimate', 'cost', 'labor', 'materials', 'total', 'service', '$', 'price'];
-    const hasQuoteContent = quoteKeywords.some(keyword => 
-      text.toLowerCase().includes(keyword)
-    );
-
-    if (!hasQuoteContent && text.length < 200) {
-      contentWarnings.push('File may not contain a service quote - please verify correct document');
-    }
-
-    // Call OpenAI for analysis
-    console.log('Sending to OpenAI...');
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini', // Using smaller model to stay under rate limits
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a home services quote analysis expert and consumer protection advocate. Analyze the provided quote and return a detailed JSON response with insights about cost, quality, timeline, and potential issues. IMPORTANT: Only use information that is actually present in the provided text. Do not invent details that are not explicitly stated.'
-=======
 
     // Enhanced document splitting
     const sections = splitDocumentIntoSections(text);
@@ -532,50 +437,22 @@ export async function POST(request: NextRequest) {
         {
           role: 'system',
           content: 'You are the Ultimate Consumer Champion delivering the definitive consumer protection report. Synthesize all forensic findings into clear, actionable guidance. Be uncompromising, specific, and focused on empowering consumers to protect themselves from exploitation. Format clearly for maximum readability and impact.'
->>>>>>> 2b80852 (Implement Consumer Champion analysis system with comprehensive scam detection and market pricing)
         },
         {
           role: 'user',
           content: synthesisPrompt
         }
       ],
-<<<<<<< HEAD
-      response_format: { type: 'json_object' },
-      temperature: 0.3,
-      max_tokens: 4000, // Limit output tokens to stay under rate limits
-    });
-
-    const analysisText = completion.choices[0]?.message?.content;
-    console.log('OpenAI analysis completed');
-=======
       temperature: 0.05,
       max_tokens: 4000,
     });
 
     const comprehensiveReport = finalCompletion.choices[0]?.message?.content;
->>>>>>> 2b80852 (Implement Consumer Champion analysis system with comprehensive scam detection and market pricing)
 
     if (!comprehensiveReport) {
       throw new Error('Failed to generate comprehensive Consumer Champion report');
     }
 
-<<<<<<< HEAD
-    // Parse the JSON response
-    let analysis;
-    try {
-      analysis = JSON.parse(analysisText);
-      
-      // Add processing metadata without breaking existing structure
-      if (contentWarnings.length > 0) {
-        analysis.processing_warnings = contentWarnings;
-      }
-      
-    } catch (parseError) {
-      // Keep existing error handling
-      analysis = {
-        error: 'Could not parse analysis',
-        raw_response: analysisText,
-=======
     console.log('Enhanced Consumer Champion forensic analysis completed successfully');
 
     // Enhanced response structure for better formatting
@@ -598,51 +475,11 @@ export async function POST(request: NextRequest) {
         },
         
         // File information
->>>>>>> 2b80852 (Implement Consumer Champion analysis system with comprehensive scam detection and market pricing)
         file_info: {
           name: file.name,
           size: file.size,
           type: file.type
         }
-<<<<<<< HEAD
-      };
-    }
-
-    console.log('Analysis complete, sending response');
-
-    // Keep existing response structure, add optional warnings
-    const response: any = {
-      ok: true,
-      analysis,
-      filename: file.name,
-      filesize: file.size
-    };
-
-    // Add warnings if present (doesn't break existing frontend)
-    if (contentWarnings.length > 0) {
-      response.warnings = contentWarnings;
-    }
-
-    return NextResponse.json(response);
-
-  } catch (error: any) {
-    console.error('Analysis failed:', error.message);
-    
-    // Handle specific OpenAI rate limit errors
-    if (error.message.includes('Rate limit') || error.message.includes('tokens per min')) {
-      return NextResponse.json(
-        { 
-          ok: false, 
-          error: 'Rate limit exceeded. Please wait a moment and try again with a smaller file.',
-          details: 'Try uploading a shorter document or wait 60 seconds before retrying.',
-          rate_limit_info: {
-            suggestion: 'For large documents, consider copying just the essential quote information into a text file.'
-          }
-        },
-        { status: 429 }
-      );
-    }
-=======
       },
       
       // Analysis metadata
@@ -659,7 +496,6 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Enhanced Consumer Champion analysis failed:', error.message);
->>>>>>> 2b80852 (Implement Consumer Champion analysis system with comprehensive scam detection and market pricing)
     
     return NextResponse.json(
       { 
