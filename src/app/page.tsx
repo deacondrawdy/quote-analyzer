@@ -87,14 +87,27 @@ export default function Home() {
             </div>
           )}
 
-          {result && (
-            <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-md">
-              <h3 className="text-lg font-semibold text-green-800 mb-3">
-                Analysis Results
-              </h3>
-              <pre className="text-sm text-green-700 whitespace-pre-wrap">
-                {JSON.stringify(result, null, 2)}
-              </pre>
+          {result && typeof result === 'object' && result.comprehensive_report && (
+            <div className="analysis-results mt-6">
+             <h2 className="text-2xl font-bold mb-4" style={{ color: '#000000', fontWeight: 'bold' }}>
+  Consumer Champion Analysis Report
+</h2>
+              <div 
+  className="comprehensive-report"
+  style={{ 
+    whiteSpace: 'pre-line', 
+    lineHeight: '1.6',
+    maxWidth: '800px',
+    margin: '0 auto',
+    padding: '20px',
+    backgroundColor: '#ffffff',  // Change to white
+    border: '1px solid #e0e0e0',  // Add border
+    borderRadius: '8px',
+    color: '#333333'  // Add dark text color
+  }}
+>
+                {result.comprehensive_report}
+              </div>
             </div>
           )}
         </div>
