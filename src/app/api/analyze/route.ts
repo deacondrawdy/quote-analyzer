@@ -192,7 +192,7 @@ Deliver uncompromising guidance on whether consumers should proceed, what they m
 
     // Single comprehensive API call to stay under timeout limits
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o', // Faster than gpt-4-turbo, still high quality
+      model: 'gpt-4-turbo', // 
       messages: [
         {
           role: 'system',
